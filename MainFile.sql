@@ -137,4 +137,40 @@ with ss as ( select year(date) as sale_year, sum(turnover) as yearly_sale
 			group by year(date))
 select sale_year, yearly_sale, round((yearly_sale / lag(yearly_sale) over (order by sale_year) - 1) * 100, 2) as pct_groth_prev
 from ss
---------------------------------------------control for seasonalityselect date, turnover, lag(turnover) over (partition by datepart(month, date) order by date) as prev_year_month,		round(turnover - lag(turnover) over (partition by datepart(month, date) order by date), 2) as diff_,		round((turnover / lag(turnover) over (partition by datepart(month, date) order by date) -1 ) * 100, 2) as diff_pctfrom GermanyRetailwhere kind_of_trade = 'Retail sale of watches and jewellery'-------------------------------------------------lines up the same time periodselect month(date) as month_, datename(month, date) as month_name,		max(case when datepart(year, date) = 2009 then turnover end) as sale_2009,		max(case when datepart(year, date) = 2010 then turnover end) as sale_2010,		max(case when datepart(year, date) = 2011 then turnover end) as sale_2011from GermanyRetailwhere kind_of_trade = 'Retail sale of watches and jewellery'group by  month(date) , datename(month, date)order by month_-----------------------------------------Comparing to Multiple Prior Periodswith mp as (select date, turnover, lag(turnover, 1) over (partition by  month(date) order by date) as prev_1,		lag(turnover, 2) over (partition by  month(date) order by date) as prev_2,		lag(turnover, 3) over (partition by  month(date) order by date) as prev_3from GermanyRetailwhere kind_of_trade = 'Retail sale of clothing')select date, turnover, round((turnover / ((prev_1 + prev_2 + prev_3)/3)) , 2) as pct_3from mp --Alternative to the last exampleselect date, turnover, 		round((turnover /avg(turnover) over (partition by month(date) order by date rows between 3 preceding and 1  preceding)), 2) as pct_of_3from GermanyRetailwhere kind_of_trade = 'Retail sale of clothing'
+
+-----------------------------------------
+---control for seasonality
+	
+select date, turnover, lag(turnover) over (partition by datepart(month, date) order by date) as prev_year_month,
+		round(turnover - lag(turnover) over (partition by datepart(month, date) order by date), 2) as diff_,
+		round((turnover / lag(turnover) over (partition by datepart(month, date) order by date) -1 ) * 100, 2) as diff_pct
+from GermanyRetail
+where kind_of_trade = 'Retail sale of watches and jewellery'
+
+----------------------------------------------
+---lines up the same time period
+select month(date) as month_, datename(month, date) as month_name,
+		max(case when datepart(year, date) = 2009 then turnover end) as sale_2009,
+		max(case when datepart(year, date) = 2010 then turnover end) as sale_2010,
+		max(case when datepart(year, date) = 2011 then turnover end) as sale_2011
+from GermanyRetail
+where kind_of_trade = 'Retail sale of watches and jewellery'
+group by  month(date) , datename(month, date)
+order by month_
+
+-----------------------------------------Comparing to Multiple Prior Periods
+with mp as (select date, turnover, lag(turnover, 1) over (partition by  month(date) order by date) as prev_1,
+		lag(turnover, 2) over (partition by  month(date) order by date) as prev_2,
+		lag(turnover, 3) over (partition by  month(date) order by date) as prev_3
+from GermanyRetail
+where kind_of_trade = 'Retail sale of clothing'
+)
+select date, turnover, round((turnover / ((prev_1 + prev_2 + prev_3)/3)) , 2) as pct_3
+from mp 
+
+--Alternative to the last example
+select date, turnover, 
+		round((turnover /avg(turnover) over (partition by month(date) order by date rows between 3 preceding and 1  preceding)), 2) as pct_of_3
+from GermanyRetail
+where kind_of_trade = 'Retail sale of clothing'
+
